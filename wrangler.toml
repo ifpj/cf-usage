@@ -1,0 +1,29 @@
+name = "cf-usage-dashboard"
+compatibility_date = "2025-11-04"
+
+# ========================================
+# 部署方式一：Worker 部署
+# ========================================
+# 取消注释下面这行，并注释掉 pages_build_output_dir
+# main = "_worker.js"
+
+# ========================================
+# 部署方式二：Pages 部署（当前生效）
+# ========================================
+pages_build_output_dir = "."
+
+# ========================================
+# 绑定配置（Worker / Pages 通用，必须配置）
+# ========================================
+
+# KV 命名空间绑定（必填，通过 wrangler kv:namespace create "KV" 创建后填入 id）
+[[kv_namespaces]]
+binding = "KV"
+id = ""
+# 环境变量
+[vars]
+ADMIN = "admin"                         # <-- 填入你的管理员密码
+
+# 如果不想明文写密码，可以删除上面的 [vars] ADMIN，改用命令行设置：
+#   Worker 部署：wrangler secret put ADMIN
+#   Pages 部署：wrangler pages secret put ADMIN --project-name cf-usage-dashboard
