@@ -65,7 +65,7 @@ export default {
         if (path === '/login') {
             if (request.method === 'GET') {
                 const cookies = parseCookies(request.headers.get('Cookie'));
-                if (cookies.auth && cookies.auth === await hashPassword(ADMIN_PASS)) {
+                if (cookies.auth && await checkAuth(request, env)) {
                     return Response.redirect(url.origin + '/admin', 302);
                 }
                 return Response.redirect(url.origin + '/', 302);
@@ -74,7 +74,7 @@ export default {
                 try {
                     const body = await request.json();
                     if (body.password === ADMIN_PASS) {
-                        const token = await hashPassword(ADMIN_PASS);
+                        const token = await createSession(env);
                         return new Response(JSON.stringify({ success: true }), {
                             headers: {
                                 'Content-Type': 'application/json',
@@ -97,6 +97,10 @@ export default {
 
         // 登出
         if (path === '/logout') {
+            const cookies = parseCookies(request.headers.get('Cookie'));
+            if (cookies.auth) {
+                await deleteSession(env, cookies.auth);
+            }
             return new Response('已登出', {
                 status: 302,
                 headers: {
@@ -124,7 +128,7 @@ export default {
         }
 
         // ============ 以下路由需要认证 ============
-        const authResult = await checkAuth(request, ADMIN_PASS);
+        const authResult = await checkAuth(request, env);
         if (!authResult) {
             if (path.startsWith('/api/')) {
                 return new Response(JSON.stringify({ error: '未授权' }), {
@@ -305,11 +309,21 @@ async function hashPassword(pass) {
     return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function checkAuth(request, adminPass) {
+async function checkAuth(request, env) {
     const cookies = parseCookies(request.headers.get('Cookie'));
     if (!cookies.auth) return false;
-    const expected = await hashPassword(adminPass);
-    return cookies.auth === expected;
+    const session = await env.KV.get('session:' + cookies.auth);
+    return session !== null;
+}
+
+async function createSession(env) {
+    const token = generateId() + generateId();
+    await env.KV.put('session:' + token, '1', { expirationTtl: 86400 });
+    return token;
+}
+
+async function deleteSession(env, token) {
+    await env.KV.delete('session:' + token);
 }
 
 function maskStr(str) {
